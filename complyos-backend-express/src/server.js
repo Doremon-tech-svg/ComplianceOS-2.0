@@ -15,15 +15,18 @@ async function main() {
     logger.info('PostgreSQL connected via Prisma');
   } catch (err) {
     logger.error('Database connection failed', { error: err.message });
-    process.exit(1);
+    if (config.env === 'production') {
+      process.exit(1);
+    }
+    logger.warn('Continuing startup without database (development mode). DB-dependent routes will fail at runtime.');
   }
 
   try {
-    startSentinelJob();
-    startDeadlineReminderJob();
-    logger.info('Background jobs started (BullMQ)');
+    await startSentinelJob();
+    await startDeadlineReminderJob();
+    logger.info('Background jobs started');
   } catch (err) {
-    logger.warn('Background jobs failed to start (Redis may be unavailable)', { error: err.message });
+    logger.warn('Background jobs failed to start', { error: err.message });
   }
 
   const server = app.listen(config.port, () => {

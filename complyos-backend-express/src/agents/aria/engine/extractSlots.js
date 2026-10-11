@@ -16,7 +16,7 @@ const ExtractSchema = z.object({
   language: z.enum(['hi', 'en', 'hinglish']).optional(),
 });
 
-const bankValues = new Map(QUESTIONS.map((question) => [question.field, new Set(question.options.map((option) => option.value).filter((value) => value !== null))]));
+const bankValues = new Map(QUESTIONS.map((question) => [question.field, new Set((question.options ?? []).map((option) => option.value).filter((value) => value !== null))]));
 const allowed = new Set([...bankValues.keys(), 'gstin', 'udyamNumber']);
 
 export function normalizeEvidenceText(value) {

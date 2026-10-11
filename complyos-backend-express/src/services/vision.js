@@ -6,9 +6,25 @@
  */
 
 import Tesseract from 'tesseract.js';
-import pdfParse from 'pdf-parse';
-const pdf = pdfParse;
+import { PDFParse } from 'pdf-parse';
 import logger from '../logger.js';
+
+/**
+ * v2-compatible wrapper around pdf-parse.
+ * Mimics the v1 API: pdf(buffer) -> { text, numpages }.
+ */
+async function pdf(buffer) {
+  const parser = new PDFParse({ data: buffer });
+  try {
+    const result = await parser.getText();
+    return {
+      text: result.text || '',
+      numpages: result.total || 0,
+    };
+  } finally {
+    await parser.destroy().catch(() => {});
+  }
+}
 
 let tesseractWorker = null;
 let workerInitFailed = false;

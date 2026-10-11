@@ -9,11 +9,26 @@ import { Queue, Worker } from 'bullmq';
 import config from '../config.js';
 import logger from '../logger.js';
 import { checkDailyDeadlines } from './cronJobs.js';
+import { redisAvailable } from './redisAvailable.js';
 
 let reminderWorker = null;
 let intervalId = null;
 
-export function startDeadlineReminderJob() {
+function startIntervalFallback() {
+  logger.warn('Redis unavailable; Deadline Reminders using in-process interval fallback');
+  const TWELVE_HOURS = 12 * 60 * 60 * 1000;
+  intervalId = setInterval(() => {
+    checkDailyDeadlines().catch((e) => logger.warn('Deadline check error', { error: e.message }));
+  }, TWELVE_HOURS);
+}
+
+export async function startDeadlineReminderJob() {
+  const redisOk = await redisAvailable(config.redis.url);
+  if (!redisOk) {
+    startIntervalFallback();
+    return;
+  }
+
   try {
     const connection = {
       url: config.redis.url,
@@ -47,10 +62,7 @@ export function startDeadlineReminderJob() {
     logger.info('Deadline Reminder BullMQ worker initialized');
   } catch (err) {
     logger.warn('BullMQ setup failed for Deadline Reminders, using interval fallback', { error: err.message });
-    const TWELVE_HOURS = 12 * 60 * 60 * 1000;
-    intervalId = setInterval(() => {
-      checkDailyDeadlines().catch((e) => logger.warn('Deadline check error', { error: e.message }));
-    }, TWELVE_HOURS);
+    startIntervalFallback();
   }
 }
 

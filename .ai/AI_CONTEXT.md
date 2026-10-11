@@ -1,355 +1,61 @@
 # AI Context: ComplianceOS 2.0
 
-> Regulatory compliance management and multi-agent intelligence platform for Indian MSMEs. Read this document before exploring source code.
-
----
-
-## 1. Project Overview
-
-ComplianceOS is an automated compliance copilot engineered for Indian MSMEs (Micro, Small, and Medium Enterprises). It calculates defensible compliance health scores, monitors statutory tax and regulatory filing deadlines (GST, TDS, Advance Tax, Annual Filings), scans notices via OCR, discovers MSME government subsidy and loan schemes, and orchestrates client-to-Chartered Accountant (CA) collaboration.
-
-The platform is driven by a specialized 5-agent AI architecture:
-
-- **ARIA**: Conversational intake and natural language interface (WebSockets + LLM).
-- **VEDA**: Document vision and OCR intelligence agent (extracts notices, challans, financial data).
-- **SCOUT**: Government scheme discovery and eligibility matching engine.
-- **SENTINEL**: Regulatory horizon monitor and deadline notification crawler.
-- **PATHWAY**: Action planning and statutory penalty resolution calculator.
-
-The repository is currently undergoing a phased migration from a legacy Python/FastAPI backend (`complyos-backend`) to a modern Node.js/Express ES6 backend (`complyos-backend-express`) with Prisma ORM, serving a unified React 18 + Vite frontend (`complyos-frontend`).
-
----
-
-## 2. Stack and Commands
-
-### Technology Stack
-
-- **Primary Backend**: Node.js (ES6 Modules, `"type": "module"`), Express.js, Prisma ORM, PostgreSQL.
-- **Frontend**: React 18, Vite, Tailwind CSS, Zustand, Lucide React, Axios.
-- **Legacy Backend**: Python 3.10+, FastAPI, SQLAlchemy, asyncpg, Celery, Redis, Pydantic.
-- **AI & Integrations**: Google Gemini API, Groq SDK, Sarvam AI (Indian sovereign speech/NLP — replaces Bhashini), Cloudinary, Razorpay.
-- **Background Tasks**: Node-cron (Express backend) and Celery workers (Python backend).
-
-### Commands
-
-#### Express Backend (`complyos-backend-express`)
-
-- **Install**: `npm install`
-- **Dev**: `npm run dev` (starts nodemon on `src/server.js`)
-- **Start**: `npm start` (starts node on `src/server.js`)
-- **Generate Prisma Client**: `npm run prisma:generate` (`npx prisma generate`)
-- **Database Push**: `npx prisma db push`
-- **Manual SENTINEL Run**: `npm run sentinel:run`
-- **ARIA Tests**: `npm run test:aria`
-- **ARIA Evals**: `npm run eval:aria:turns`, `npm run eval:aria:slots`, `npm run eval:aria:wer`, `npm run eval:aria:taps`
-- **Seed DB**: `node src/data/seed.js`
-- **Run Tests**: `npm test` (`node tests/testSuite.js && node src/agents/sentinel/__tests__/sentinel.test.js`)
-- **Test All Suites**: `npm run test:all` (ARIA, VEDA, SCOUT, integration, and legacy/SENTINEL suites).
-- **Integration Tests**: `npm run test:integration`
-
-#### Frontend (`complyos-frontend`)
-
-- **Install**: `npm install`
-- **Dev**: `npm run dev` (starts Vite dev server)
-- **Build**: `npm run build` (production Vite build)
-- **Lint**: `npm run lint` (`eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0`)
-- **Preview**: `npm run preview`
-
-#### Legacy Python Backend (`complyos-backend`)
-
-- **Install**: `pip install -r requirements.txt`
-- **Dev**: `uvicorn app.main:app --reload --port 8000`
-- **Docker**: `docker-compose up --build`
-- **Celery Worker**: `celery -A app.tasks.celery_app worker --loglevel=info`
-
----
-
-## 3. Directory Map
-
-- `complyos-backend/`: Legacy FastAPI backend (models, routers, agents, services, Celery tasks).
-- `complyos-backend/app/agents/`: Python implementations of ARIA, VEDA, SCOUT, SENTINEL, PATHWAY.
-- `complyos-backend/app/models/`: SQLAlchemy database entity models.
-- `complyos-backend/app/routers/`: FastAPI endpoint routers.
-- `complyos-backend/app/services/`: OCR, R2 storage, RAG, and notification integration services.
-- `complyos-backend/app/tasks/`: Celery asynchronous worker tasks.
-- `complyos-backend-express/`: Primary Node.js/Express ES6 backend.
-- `complyos-backend-express/prisma/`: Prisma schema definition (`schema.prisma`) for PostgreSQL.
-- `complyos-backend-express/src/agents/`: JavaScript multi-agent modules (ARIA, VEDA, SCOUT, SENTINEL, PATHWAY).
-- `complyos-backend-express/src/agents/sentinel/`: SENTINEL source config, fetch, normalize, diff, classify, matcher, alert builder, review and test fixtures.
-- `complyos-backend-express/src/graph/`: Event state/router and ARIA, VEDA, SCOUT, PATHWAY, consent, quota, deletion, profile-conflict, and SENTINEL delivery nodes.
-- `complyos-backend-express/src/orchestrator/`: Inbound event validation, per-user lock, idempotency, graph execution, persistence, and safe error handling.
-- `complyos-backend-express/src/delete/`: User data deletion and anonymization with retained consent and payment records.
-- `complyos-backend-express/src/agents/scout/`: TypeScript SCOUT matcher, runner, schemas, mock, and fixtures.
-- `complyos-backend-express/src/agents/scout/engine/`: deterministic matching, ARIA feedback, messages, and checked explanations.
-- `complyos-backend-express/src/agents/scout/schemes/`: scheme records loaded by SCOUT.
-- `complyos-backend-express/src/agents/scout/drafts/`: runtime-only draft output, excluded from scheme loading.
-- `complyos-backend-express/src/agents/scout/verify/`: injected TinyFish freshness, discovery, and draft extraction.
-- `complyos-backend-express/src/agents/scout/eval/`: matching evaluation harness and synthetic evaluation data.
-- `complyos-backend-express/src/agents/scout/fixtures/`: static SCOUT profiles and mock outputs.
-- `complyos-backend-express/src/agents/scout/prompts/`: SCOUT explanation prompts.
-- `complyos-backend-express/src/data/`: Static MSME scheme database (`schemes.json`) and seeder script (`seed.js`).
-- `complyos-backend-express/src/jobs/`: Scheduled cron jobs (`cronJobs.js`, `deadlineReminder.js`, `sentinelCrawler.js`).
-- `complyos-backend-express/src/middleware/`: Express middleware (`auth.js` for JWT, `errorHandler.js`).
-- `complyos-backend-express/src/routes/`: Domain route handlers (`auth.js`, `business.js`, `compliance.js`, etc.).
-- `complyos-backend-express/src/channels/`: Channel-neutral event adapters, including WhatsApp webhook parsing and outbound rendering.
-- `complyos-backend-express/src/channels/whatsappMedia.js`: WhatsApp provider-media download, live Sarvam audio transcription, and Cloudinary document upload before graph dispatch.
-- `complyos-backend-express/src/channels/schemeVerification.js`: Read-time scheme verification and official-host allowlist (`.gov.in`, `.nic.in`, plus `odopup.in`).
-- `complyos-backend-express/src/routes/chat.js`: Authenticated web chat JSON and SSE endpoints.
-- `complyos-backend-express/src/services/`: External integrations (Cloudinary, Razorpay, WhatsApp, Sarvam AI, TinyFish). `bhashiniService.js` is retained but no longer used in active routes.
-- `complyos-backend-express/src/services/sarvamService.js`: Sarvam API adapter; WhatsApp media rejects demo-fallback transcripts. Sarvam models/formats are not verified.
-- `complyos-backend-express/src/services/tinyfish.js`: TinyFish adapter for search/fetch/agent calls with rate limits and block detection.
-- `complyos-backend-express/src/services/notify.js`: In-app-first notifications, 24-hour WhatsApp session-window handling, approved utility-template gate, and reminder deduplication.
-- `complyos-backend-express/src/utils/`: Deterministic compliance score and penalty formulas (`complianceCalculators.js`).
-- `complyos-backend-express/tests/`: Integration test suite (`testSuite.js`).
-- `complyos-frontend/`: React 18 + Vite client application.
-- `complyos-frontend/src/components/agents/`: Agent UI cards and drawers (`SCOUTResults`, `VEDAUploader`, `SENTINELAlert`).
-- `complyos-frontend/src/components/aria/`: Chat UI components (`ARIAInput`, `ChatBubble`, `QuickReply`).
-- `complyos-frontend/src/components/layout/`: Common navigation layout (`Sidebar`, `Topbar`, `DashboardLayout`, `CASidebar`).
-- `complyos-frontend/src/components/ui/`: Atomic cards, badges, modal dialogs, and progress bars.
-- `complyos-frontend/src/hooks/`: Custom React hooks (`useARIA`, `useSCOUT`, `useVEDA`).
-- `complyos-frontend/src/pages/`: Primary app views (Dashboard, Documents, Calendar, Notices, Loans, CAConnect).
-- `complyos-frontend/src/pages/ca/`: Dedicated CA portal views (CADashboard, CAApprovalRequests, CAFraudShield).
-- `complyos-frontend/src/services/`: Client network layer (`api.js`, `ariaSocket.js`, `groqService.js`).
-- `complyos-frontend/src/store/`: Zustand state slices (`authStore.js`, `businessStore.js`, `notificationStore.js`).
-- `complyos-frontend/src/utils/`: Formatters, mock directories, and constants (`caDirectory.js`, `constants.js`, `helpers.js`).
-
----
-
-## 4. Key Entry Points and Main Flows
-
-- **Express Backend Entry (`complyos-backend-express/src/server.js`)**: Imports `app.js`, initializes HTTP and WebSocket servers, connects to Prisma via `db.js`, starts cron jobs via `cronJobs.js`, and binds port 5000.
-- **Frontend Entry (`complyos-frontend/src/main.jsx`)**: Mounts `App.jsx`, providing routing via React Router and wrapping views with layout components and Zustand store state.
-- **Intake & Chat Flow**:
-  1. User triggers ARIA chat via `ComplianceChatbot.jsx` or `/onboarding`.
-  2. Frontend connects to WebSocket (`ariaSocket.js`) or calls `/api/aria`.
-  3. `aria.js` processes input with Gemini/Groq prompt constraints and returns structured onboarding or compliance recommendations.
-- **Graph Orchestration Flow**: `handleEvent` validates events, enforces consent, idempotency, and a per-user lock, then routes through graph nodes. ARIA can chain into SCOUT; VEDA refreshes SCOUT only after successful profile changes. The orchestrator does not call LLM services.
-- **Home routing**: When conversation phase is `home`, TEXT/VOICE keywords deterministically route to SCOUT, saved deadlines, upload guidance, ARIA profile editing, recent SENTINEL alerts, or the PATHWAY stub; otherwise show the home card.
-- **Channel flow**: Web chat uses `POST /api/chat/event` and `GET /api/chat/stream`; WhatsApp parses messages into shared events. Audio is downloaded by provider media ID and transcribed with Sarvam; documents/images are downloaded, uploaded to Cloudinary, and passed to VEDA as an HTTPS URL. Interactive IDs use `<cardId>::<actionId>`.
-- **VEDA resume**: New documents receive `veda:<userId>:<uuid>` thread IDs stored in `ConversationState.pendingVeda`; only the pending thread can resume before its TTL expires.
-- **SCOUT events**: Only `SCHEME_REQUEST`, `TEASER`, and `REFRESH` are accepted. Unknown profile criteria remain `possible`, never `eligible`.
-- **Scheme visibility**: Read paths hide source/checker placeholders. Legacy sources must be HTTPS `.gov.in`/`.nic.in`, with the official `odopup.in` domain explicitly allowed. Deactivation SQL is review-only; the app does not execute it.
-- **Notification jobs**: Deadline reminders and newly created immediate SENTINEL alerts use `services/notify.js`. Free-form WhatsApp is limited to the 24-hour user window. Outside it, only `TEMPLATE_MODE` plus a verified utility `SENTINEL_TEMPLATE_NAME` enables a template; otherwise keep the notification in-app. Never send marketing templates.
-- **Deletion**: User deletion removes personal records and Cloudinary media, anonymizes the user row, and retains ConsentLog and payment records.
-- **Document & OCR Flow**:
-  1. User drops document in `VEDAUploader.jsx` (`/documents`).
-  2. File uploads to `/api/documents/upload`, persisted to Cloudinary/storage.
-  3. `veda.js` performs vision extraction (extracting GSTIN, period, tax demand, penalty).
-  4. Extracted data updates `Document` and `ComplianceRecord` in Prisma, updating the compliance score.
-- **CA Workflow**:
-  1. Business user requests CA review via `/api/ca/request`.
-  2. CA views queue in `CAApprovalRequests.jsx` and runs audit checks using `CAFraudShield.jsx`.
-- **Backend**: `src/server.js` initializes Express, HTTP/WebSocket, Prisma and cron jobs. Frontend starts at `complyos-frontend/src/main.jsx`.
-- **ARIA**: Route callers still use legacy `src/agents/aria.js`; new per-turn `src/agents/aria/index.js` is exposed through `src/graph/nodes/aria.node.js`. Parent owns persistence.
-- **VEDA**: `/api/documents/upload` still calls legacy `src/agents/veda.js`; the new subgraph is `src/agents/veda/`. Migration/persistence gaps are in `VEDA_CONTRACT_REQUESTS.md`.
-- **CA**: `/api/ca/request` creates engagements consumed by CA portal pages.
-
----
-
-## 5. Core Modules and Responsibilities
-
-- **`complyos-backend-express/src/agents/aria.js`**: Conversational intake logic, interactive onboarding, intent parsing.
-- **`complyos-backend-express/src/agents/veda.js`**: OCR extraction, document type recognition, notice parser.
-- **`complyos-backend-express/src/agents/scout.js`**: MSME scheme matcher comparing business turnover/sector against eligibility criteria.
-- **`complyos-backend-express/src/agents/scout/entry.ts`**: SCOUT graph-facing runner selector; uses mock unless `SCOUT_REAL === 'true'`.
-- **`complyos-backend-express/src/agents/scout/engine/match.ts`**: Pure deterministic criteria matching; unknown criteria remain `possible`.
-- **`complyos-backend-express/src/agents/scout/verify/runVerify.ts`**: Injected-client freshness checks returning stale copies and review items without persistence.
-- **`complyos-backend-express/src/agents/scout/verify/runDiscovery.ts`**: Injected discovery/draft pipeline; persists generated JSON only under SCOUT `drafts/`.
-- **`complyos-backend-express/src/agents/sentinel.js`**: High-level sentinel wrapper and trigger entry point.
-- **`complyos-backend-express/src/agents/sentinel/*`**: Source config, fetch, normalize, diff, classify, profile matching, alert building, review queue helpers, and tests.
-- **`complyos-backend-express/src/orchestrator/handleEvent.js`**: Consent-aware inbound orchestration, user lock, idempotency, graph invocation, and persistence.
-- **`complyos-backend-express/src/channels/whatsapp.js`**: WhatsApp webhook parsing, interactive ID encoding/decoding, centralized `WA_LIMITS` (not verified), and outbound rendering.
-- **`complyos-backend-express/src/channels/whatsappMedia.js`**: Provider media download and audio/document processing before graph dispatch; no synthetic media buffers.
-- **`complyos-backend-express/src/channels/schemeVerification.js`**: Scheme metadata checks and official-host filtering, including the `odopup.in` exception.
-- **`complyos-backend-express/src/services/notify.js`**: Shared delivery window/template policy and in-app idempotency for reminders.
-- **`complyos-backend-express/src/jobs/cronJobs.js`**: SENTINEL/deadline job entry paths; deadline reminders use the shared notifier.
-- **`complyos-backend-express/src/routes/chat.js`**: Authenticated web chat POST/SSE endpoints returning shared event results.
-- **`complyos-backend-express/src/middleware/safeHttpLog.js`**: Removes query strings from access-log paths to avoid logging submitted chat text.
-- **`complyos-backend-express/src/graph/`**: Typed graph state, routing, and domain/agent nodes; profile changes use `mergeProfile`.
-- **`complyos-backend-express/src/graph/nodes/sentinelDeliveryNode.js`**: Approved-change delivery, simulated-label checks, per-user/change dedupe, immediate-alert cap, and digest routing.
-- **`complyos-backend-express/src/delete/deleteUserData.js`**: Media cleanup, personal-data removal, and user anonymization.
-- **`complyos-backend-express/src/services/sarvamService.js`**: Sarvam speech/language adapter. Provider-specific behavior and supported formats are not verified; WhatsApp rejects its demo transcript fallback.
-- **`complyos-backend-express/src/services/tinyfish.js`**: Search/fetch/agent adapter with block checks, retry logic, rate limits, and daily agent cap control.
-
-### Prisma Data Models: Alert Routing
-
-- **`SentinelAlert`**: User-facing alert model—stores displayed regulatory alerts with title, summary, source URL, simulated label. Written by SENTINEL pipeline for UI rendering and user notifications.
-- **`RegulationAlert`**: Delivery tracking model—links a (user, regulation change) pair; tracks whether a user was alerted for a specific change. Used for deduplication and audit.
-- **`Notification`**: Generic in-app system notification model—stores general (non-regulation) messages, reminders, and broadcasts.
-- **`complyos-backend-express/src/agents/pathway.js`**: Step-by-step resolution pathways for pending tax demands and notice replies.
-- **`complyos-backend-express/src/utils/complianceCalculators.js`**: Ground-truth mathematical engine for compliance scores and penalty deductions.
-- **`complyos-backend-express/src/db.js`**: Singleton PrismaClient connection pool.
-
----
-
-## 6. Data Models and API Routes
-
-### Environment Variable Names
-
-- `TINYFISH_API_KEY`
-- `TINYFISH_AGENT_DAILY_CAP`
-- `SARVAM_API_KEY` — Sarvam AI subscription key (get from dashboard.sarvam.ai). Used in `sarvamService.js` for ASR/TTS/translate. Omitting activates demo fallback.
-- `TEMPLATE_MODE`
-- `SENTINEL_TEMPLATE_NAME` — must name a verified, approved utility template; never configure a marketing template.
-
-### SENTINEL Flow
-
-1. Trigger: manual `npm run sentinel:run` or API route that calls `runSentinelCrawl()`.
-2. `src/agents/sentinel/sources.json` defines each source and skips entries whose URL starts with `TODO_VERIFY_OFFICIAL_URL`.
-3. TinyFish fetches and validates the page; blocked/captcha/error pages are rejected.
-4. Text is normalized and compared to the last stored snapshot using diff logic.
-5. A change is classified, then reviewed for confidence and quote validity.
-6. `matchProfiles()` decides which active profiles are in scope, based on explicit fields only.
-7. `buildAlert()` creates the alert only when sourceUrl, lastVerified, quote, and confidence gates pass.
-8. Delivery targets profiles in code, deduplicates `(userId, changeId)`, and allows at most one immediate alert per user per day; other qualifying changes are digested.
-
-### Safety Warnings
-
-- No alert without `sourceUrl` and `lastVerified`.
-- `TODO_VERIFY_OFFICIAL_URL` placeholders are skipped; no live source calls are attempted while placeholders remain.
-- The LLM never decides user targeting; code in `matchProfiles.js` and `buildAlert.js` decides that.
-- Only official sources are allowed in production; simulated alerts must be labeled as such.
-- Simulated alerts are labeled in backend code, not frontend.
-- Agent profile patches go through `mergeProfile`; never spread patches over stored profiles.
-- Option taps do not make LLM calls; neither does the orchestrator itself.
-- On deletion, ConsentLog and payment records are retained; the User row is anonymized.
-- Verify `WA_LIMITS` against Meta before production. Sarvam, Groq, and TinyFish provider-specific behavior, supported formats/models, contracts, and rate-limit details are not verified.
-
-### How to Add a New Regulation Source
-
-1. Edit `complyos-backend-express/src/agents/sentinel/sources.json`.
-2. Verify the official URL first before enabling it.
-3. Use the same `id`, `url`, `type`, `stateScope`, `fetchVia`, `checkEvery`, and `simulated` fields.
-4. Do not use or keep a `TODO_VERIFY_OFFICIAL_URL` entry for live monitoring.
-
-### Prisma Relational Models
-
-| Model                | Key Fields                                               | Purpose                                  |
-| -------------------- | -------------------------------------------------------- | ---------------------------------------- |
-| `User`               | `id, email, phone, passwordHash, fullName`               | Relational entity for user               |
-| `BusinessProfile`    | `id, userId, businessName, gstin, pan`                   | Relational entity for businessprofile    |
-| `Document`           | `id, userId, filename, cloudinaryUrl, cloudinaryId`      | Relational entity for document           |
-| `ComplianceDeadline` | `id, userId, title, description, deadlineDate`           | Relational entity for compliancedeadline |
-| `Scheme`             | `id, name, nameHindi, description, descriptionHindi`     | Relational entity for scheme             |
-| `SchemeMatch`        | `id, businessId, schemeId, matchScore, criteriaMetCount` | Relational entity for schemematch        |
-| `SentinelAlert`      | `id, userId, title, titleHindi, summary`                 | Relational entity for sentinelalert      |
-| `CAClientMap`        | `id, caId, clientId, addedAt, ca`                        | Relational entity for caclientmap        |
-| `Notification`       | `id, userId, title, body, channel`                       | Relational entity for notification       |
-| `Subscription`       | `id, userId, plan, razorpaySubId, razorpayCustomerId`    | Relational entity for subscription       |
-| `ARIASession`        | `id, userId, sessionId, messages`                        | Relational entity for ariasession        |
-
-### Key Express Endpoints
-
-| Method | Route                         | Source                    | Description                                |
-| ------ | ----------------------------- | ------------------------- | ------------------------------------------ |
-| `POST` | `/api/auth/register`          | `routes/auth.js`          | Register new user and business profile     |
-| `POST` | `/api/auth/login`             | `routes/auth.js`          | User login and JWT token issuance          |
-| `GET`  | `/api/auth/me`                | `routes/auth.js`          | Get authenticated user session details     |
-| `GET`  | `/api/business/profile`       | `routes/business.js`      | Retrieve business details and GSTIN/PAN    |
-| `PUT`  | `/api/business/profile`       | `routes/business.js`      | Update business profile details            |
-| `GET`  | `/api/compliance/status`      | `routes/compliance.js`    | Get compliance checklist and score         |
-| `GET`  | `/api/compliance/calendar`    | `routes/compliance.js`    | Upcoming statutory deadlines (GST/TDS)     |
-| `POST` | `/api/compliance/calculate`   | `routes/compliance.js`    | Trigger compliance penalty calculation     |
-| `POST` | `/api/documents/upload`       | `routes/documents.js`     | Upload tax/statutory document (Cloudinary) |
-| `GET`  | `/api/documents`              | `routes/documents.js`     | List uploaded documents and OCR status     |
-| `GET`  | `/api/documents/:id/ocr`      | `routes/documents.js`     | Fetch VEDA OCR extracted metadata          |
-| `GET`  | `/api/ca/directory`           | `routes/ca.js`            | List verified Chartered Accountants        |
-| `POST` | `/api/ca/request`             | `routes/ca.js`            | Create engagement request with a CA        |
-| `GET`  | `/api/notifications`          | `routes/notifications.js` | Fetch notifications and alerts             |
-| `PUT`  | `/api/notifications/:id/read` | `routes/notifications.js` | Mark notification as read                  |
-| `GET`  | `/api/agent-trace`            | `routes/agentTrace.js`    | Multi-agent execution log stream           |
-| `GET`  | `/api/admin/metrics`          | `routes/admin.js`         | System performance and user metrics        |
-| `POST` | `/api/chat/event`             | `routes/chat.js`            | Submit authenticated web chat event         |
-| `GET`  | `/api/chat/stream`            | `routes/chat.js`            | Stream channel-neutral chat messages via SSE |
-### SENTINEL Safety
-- Skip `TODO_VERIFY_OFFICIAL_URL` sources until official URLs are confirmed.
-- Require source metadata for alerts; code chooses user targeting. Mark simulated alerts in backend output.
-
-### Core Prisma Models
-`User`, `BusinessProfile`, `Document`, `ComplianceDeadline`, `Scheme`, `SchemeMatch`, `SentinelAlert`, `RegulationSource`, `RegulationSnapshot`, `RegulationChange`, `Alert`, `TinyFishCall`, `Notification`, `Subscription`, `ARIASession`.
-
-### Key Express Endpoints
-- Auth: `/api/auth/register`, `/api/auth/login`, `/api/auth/me`.
-- Business/compliance: `/api/business/profile`, `/api/compliance/status`, `/api/compliance/calendar`, `/api/compliance/calculate`.
-- Documents/CA: `/api/documents/upload`, `/api/documents`, `/api/ca/directory`, `/api/ca/request`.
-- Operations: `/api/notifications`, `/api/agent-trace`, `/api/admin/metrics`.
-
----
-
-## 7. Dependency Graph Summary
-
-- **Express Backend Core Dependencies**: `express`, `@prisma/client`, `cors`, `dotenv`, `jsonwebtoken`, `bcryptjs`, `ws`, `node-cron`, `multer`, `@google/genai`, `cloudinary`, `razorpay`, `axios`.
-- **Sarvam AI**: No separate npm package needed — API calls made via `axios` to `https://api.sarvam.ai`. Auth via `api-subscription-key` header.
-- **Frontend Core Dependencies**: `react`, `react-dom`, `react-router-dom`, `zustand`, `lucide-react`, `axios`, `groq-sdk`, `tailwindcss`.
-- **Legacy Python Dependencies**: `fastapi`, `uvicorn`, `sqlalchemy`, `asyncpg`, `celery`, `redis`, `pydantic`.
-
----
-
-## 8. How to Make Common Changes
-
-### Add an API Route / Endpoint
-
-1. Create or open the relevant route file in `complyos-backend-express/src/routes/<domain>.js`.
-2. Define the route:
-   ```javascript
-   router.get("/my-route", authenticateToken, async (req, res, next) => {
-     try {
-       const data = await prisma.myModel.findMany({
-         where: { userId: req.user.id },
-       });
-       res.json({ success: true, data });
-     } catch (err) {
-       next(err);
-     }
-   });
-   ```
-3. If creating a new router, mount it in `complyos-backend-express/src/app.js`:
-   `app.use('/api/<domain>', <domain>Routes);`
-4. Expose the client method in `complyos-frontend/src/services/api.js`.
-
-### Add a UI Page / Component
-
-1. Create the page file: `complyos-frontend/src/pages/<PageName>.jsx`.
-2. Register the route in `complyos-frontend/src/App.jsx` inside the `<Routes>` block.
-3. If part of the dashboard sidebar, add an entry to `complyos-frontend/src/components/layout/Sidebar.jsx`.
-
-### Add a Database Model / Field
-
-1. Edit `complyos-backend-express/prisma/schema.prisma`.
-2. Run `npm run prisma:generate` inside `complyos-backend-express`.
-3. Apply migration: `npx prisma db push` (or `npx prisma migrate dev`).
-
-### Update Environment Configuration
-
-1. Add the variable key name to `complyos-backend-express/.env.example`.
-2. Export the setting in `complyos-backend-express/src/config.js`.
-3. Never commit credentials or real keys.
-
----
-
-## 9. Conventions, Gotchas, and Warnings
-
-- **ES6 Imports Required**: `complyos-backend-express` uses ES6 modules (`"type": "module"`). All relative imports must have the `.js` extension (e.g. `import db from './db.js';`). Omitting the `.js` causes runtime crashes.
-- **Migration Status**: Follow `MIGRATION_PLAN.md`. All active development must happen in `complyos-backend-express`. Do not add new features to `complyos-backend` (Python).
-- **Prisma Generation**: Always run `npm run prisma:generate` after updating `schema.prisma`.
-- **Ground Truth Numbers**: AI agents must never hallucinate tax penalties or interest calculations. Always delegate math to `complianceCalculators.js`.
-- **ARIA Safety**: Keep option taps deterministic; redact Aadhaar/PAN/OTP/password text before Groq; require verbatim evidence quotes; derive numeric bands in code; never overwrite `VERIFIED` fields. Do not enable live Sarvam calls until verified.
-- **Graph Safety**: Resume VEDA only with the stored pending thread ID; unknown or expired threads ask the user to upload the document again.
-- **Protected Files**: Do not manually modify `package-lock.json` or `.prisma` client builds.
-- SCOUT hides schemes with missing or placeholder source data from user-facing output.
-- SCOUT matching is code-owned; never call a `possible` match eligible when criteria are unknown.
-- SCOUT discovery output is draft-only and requires human review before moving into `schemes/`.
-- SCOUT contract, Groq, and TinyFish placeholders remain until shared contracts and services are available.
-
----
-
-## 10. How Future Agents Should Use This File
-
-Read this file first. Do not scan the whole repo. Use `.ai/file_index.json` and `.ai/project_graph.json` only via grep/jq lookups, never load them in full. Open source files only when needed for the task. After major changes (new routes, models, modules, commands), update this file.
-
-SCOUT details: .ai/agents/scout.md
-## 10. Agent Workflow and Context Maintenance
-- Before starting work, read `.ai/AI_CONTEXT.md`. Explore only the files needed for the task; do not scan the whole repository.
-- Use `.ai/file_index.json` and `.ai/project_graph.json` only for targeted `rg`/`jq` lookups; never load either file in full.
-- If a task changes a route, model, module, component, command, environment variable, or dependency, update this file and add one dated line to `.ai/CHANGELOG.md` in the same change.
-- Replace outdated context instead of only appending. Keep this file under approximately 4,000 tokens. Never put secrets or `.env` values here, and do not paste large code blocks.
+> Read before exploring source code. Keep exploration targeted; this is an Indian MSME compliance platform.
+
+## Project and Stack
+ComplianceOS serves Indian MSMEs with profile intake, document verification, scheme discovery, regulatory monitoring, compliance action plans, deadline reminders, and CA workflows. Five named agents are ARIA, VEDA, SCOUT, SENTINEL, and PATHWAY.
+
+- Primary backend: Node.js/Express ESM, Prisma, PostgreSQL (`complyos-backend-express/`).
+- Frontend: React 18/Vite (`complyos-frontend/`).
+- Legacy backend: FastAPI (`complyos-backend/`); active work is in Express.
+- Integrations: Groq, LangGraph JS, LangChain Core, Zod, Google Cloud Vision, Sarvam, Cloudinary, TinyFish, WhatsApp, Razorpay.
+
+## Useful Commands
+Run from `complyos-backend-express/` unless noted:
+- `npm run dev`, `npm start`
+- `npm run prisma:generate`; `npx prisma db push`
+- `npm run test:aria`; `npm run test:all`; `npm run test:integration`
+- `npm run sentinel:run`
+- ARIA evals: `npm run eval:aria:turns`, `eval:aria:slots`, `eval:aria:wer`, `eval:aria:taps`
+- Seed: `node src/data/seed.js`
+
+## Current Architecture
+- `src/server.js` starts Express, Prisma, and jobs; `src/app.js` mounts API and chat routes.
+- `src/orchestrator/handleEvent.js` validates inbound events, obtains/creates the user, enforces idempotency and per-user locking, loads profile/conversation state, invokes the graph, then persists changed profile/conversation and trace.
+- `src/graph/runGraph.js` is the parent LangGraph workflow. `src/graph/router.js` deterministically routes event types to consent, deletion, home/menu, ARIA, VEDA, SCOUT, profile-conflict, and PATHWAY-stub nodes.
+- `src/channels/` adapts WhatsApp and provider media to channel-neutral events. Web chat is in `src/routes/chat.js` (POST event and SSE stream).
+- The detailed, code-grounded explanation and sequence diagrams are in [`docs/AGENT_ARCHITECTURE.md`](../docs/AGENT_ARCHITECTURE.md). Update that guide when graph wiring changes.
+
+## Agent Ownership and Handoffs
+- **ARIA**: Existing legacy handler is `src/agents/aria.js`; the newer per-turn engine is `src/agents/aria/`. The Stage B graph uses `src/graph/nodes/ariaNode.js` and `src/orchestrator/handleEvent.js` persists its returned profile/conversation. `src/graph/nodes/aria.node.js` is an older adapter. ARIA handles intake; profile merge/persistence belongs to parent/repositories.
+- **VEDA**: Legacy upload route `src/routes/documents.js` still calls `src/agents/veda.js`. Modular LangGraph graph is `src/agents/veda/`; Stage B uses `src/graph/nodes/vedaNode.js`. Channel media code downloads/uploads documents before dispatch. Confirmation threads live in `ConversationState.pendingVeda`; parent routes resume events. Check active integration tests before changing this boundary.
+- **SCOUT**: Legacy scheme routes still use `src/agents/scout.js`. Modular TypeScript runner is `src/agents/scout/entry.ts`, selected by `SCOUT_REAL=true`, otherwise mock. Matching is deterministic; unknown criteria mean `possible`, never eligible. The graph calls `src/graph/nodes/scoutNode.js`; ARIA can chain SCOUT at profile completion/home request. Scheme verification/discovery is separate; drafts require human review.
+- **PATHWAY**: Existing `src/agents/pathway.js` returns curated checklists. Stage B graph currently has `pathwayStubNode.js`; do not imply the full legacy checklist is mounted there unless verified. Routes can still call the legacy helper.
+- **SENTINEL**: `src/agents/sentinel/` crawls sources, stores snapshots/changes, validates evidence, matches profiles, and builds alerts. Stage B adds `sentinelDeliveryNode.js`; `src/jobs/cronJobs.js` and `src/jobs/sentinelCrawler.js` schedule/manual-trigger paths. Placeholder URLs are skipped. Alerts require citations, confidence/evidence gates, dedupe, caps, and simulated labels.
+
+## Shared State and Persistence
+- `src/graph/state.js` defines parent state; `src/contracts/common.js` defines shared event/profile/message/trace schemas; `src/contracts/profileFields.js` defines profile keys.
+- `src/profile/mergePolicy.js` and `src/profile/projection.js` own profile merge/projection behavior. Route/agent code should not blindly overwrite stored profiles; preserve VERIFIED data and provenance.
+- `src/repos/` contains user, profile, conversation, document, deadline, scheme, alert, consent, inbound-event, and trace repositories; `src/repos/memory/` provides test doubles.
+- Prisma models include User, BusinessProfile, ARIASession, Document, ComplianceDeadline, Scheme/SchemeMatch, RegulationSource/Snapshot/Change/Alert, SentinelAlert, TinyFishCall, Notification, ConsentLog, and Subscription.
+- `src/services/notify.js` centralizes in-app/WhatsApp delivery rules, template gating, session windows, and deduplication. User deletion is in `src/delete/deleteUserData.js`; consent/payment records are retained as specified by policy.
+- `/api/agent-trace` is a presentation endpoint; use the trace repository/parent run IDs for execution tracing.
+
+## Important Safety and Integration Notes
+- Route/job/graph code decides routing. LLMs explain or extract only; deterministic code owns validation, eligibility, profile merges, penalties, and deadlines.
+- ARIA: option taps must not call LLM; extracted updates need verbatim evidence; redact Aadhaar/PAN/OTP/password text before Groq; turnover bands are code-derived; never overwrite VERIFIED fields.
+- VEDA: mask sensitive text before OCR-derived LLM extraction; gate uncertain/invalid fields and interrupt before profile/calendar commit.
+- SCOUT: do not label `possible` as eligible; hide placeholder/unverified source data; discovery drafts are not user-facing.
+- SENTINEL: skip `TODO_VERIFY_OFFICIAL_URL`; no alert without valid source/evidence; code decides targeting; simulated output must be labeled.
+- PATHWAY is guidance only: no portal login, credential capture, or auto-filing. Statutory numbers use `src/rules/` or `src/utils/complianceCalculators.js`, never model guesses.
+- Sarvam calls are through `src/services/sarvamService.js` using axios and `SARVAM_API_KEY`; provider formats/models need verification. Do not put secret values in `.ai/`.
+- WhatsApp `WA_LIMITS`, provider audio behavior, external model/API details, and source URLs marked TODO require verification before production.
+- After schema changes, run Prisma generation. Do not manually edit `package-lock.json` or generated Prisma client files.
+
+## Environment Variable Names
+`SARVAM_API_KEY`, `TINYFISH_API_KEY`, `TINYFISH_AGENT_DAILY_CAP`, `TEMPLATE_MODE`, `SENTINEL_TEMPLATE_NAME`. ARIA module flags are listed in backend `.env.example`; do not copy values/secrets into this file.
+
+## Task Workflow
+- Before each task, read `.ai/AI_CONTEXT.md`; search only the files needed. Use `.ai/file_index.json` and `.ai/project_graph.json` only with targeted `rg`/`jq` queries; never load them in full.
+- If a task adds/removes/renames a route, model, module, component, command, environment variable, or dependency, update this file and add a dated one-line entry to `.ai/CHANGELOG.md` in the same change. Update docs when architecture changes.
+- Keep this file under approximately 4,000 tokens. Replace stale details instead of appending. Never include secrets, `.env` values, or large code blocks.
