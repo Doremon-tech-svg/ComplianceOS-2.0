@@ -1,7 +1,7 @@
 const GROQ_BASE =
     "https://api.groq.com/openai/v1/chat/completions";
 
-const MODEL = "llama-3.1-8b-instant"; // cheaper + faster
+const MODEL = "qwen/qwen3.8-27b"; // cheaper + faster
 
 function getKey() {
     return import.meta.env.VITE_GROQ_API_KEY || "";

@@ -5,144 +5,62 @@ import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { Footer } from "../components/layout/Footer";
 import SchemeCard from "../components/ui/SchemeCard";
 import { Button, Modal } from "../components/ui/Common";
-import { groqChat } from "../services/groqService";
+import { apiFetch } from "../services/api";
 import { getProfile } from "../utils/profileStore";
 
 const FILTERS = ["All", "Central", "State", "Women", "Loans", "Grants"];
+const APPLIED_KEY = "cos_schemes_applied";
 
-// ─── Real Government Schemes with official portal links ──────────────────
-const REAL_GOVT_SCHEMES = [
-  {
-    scheme_name: "Udyam Registration",
-    scheme_type: "Central",
-    max_benefit: "₹1 Cr+ subsidised credit",
-    eligibility_match_score: 95,
-    why_eligible: "Mandatory MSME recognition unlocking all central schemes, subsidies, and priority lending.",
-    portal_url: "https://udyamregistration.gov.in",
-    ministry: "Ministry of MSME",
-    target: "all",
-  },
-  {
-    scheme_name: "PM SVANidhi – Street Vendor Loan",
-    scheme_type: "Loans",
-    max_benefit: "₹50,000 collateral-free",
-    eligibility_match_score: 72,
-    why_eligible: "Micro-enterprise collateral-free working capital loan at subsidised interest.",
-    portal_url: "https://pmsvanidhi.mohua.gov.in",
-    ministry: "Ministry of Housing & Urban Affairs",
-    target: "micro",
-  },
-  {
-    scheme_name: "CGTMSE – Credit Guarantee",
-    scheme_type: "Loans",
-    max_benefit: "₹2 Cr without collateral",
-    eligibility_match_score: 85,
-    why_eligible: "Collateral-free term loans up to ₹2 Cr for MSMEs via partner banks.",
-    portal_url: "https://www.cgtmse.in",
-    ministry: "SIDBI & Ministry of MSME",
-    target: "all",
-  },
-  {
-    scheme_name: "Mahila Udyam Nidhi",
-    scheme_type: "Women",
-    max_benefit: "₹10 Lakh soft loan",
-    eligibility_match_score: 90,
-    why_eligible: "Soft loan at concessional interest for women-owned small enterprises.",
-    portal_url: "https://www.sidbi.in/en/products-and-services/mahila-udyam-nidhi",
-    ministry: "SIDBI",
-    target: "women",
-  },
-  {
-    scheme_name: "PMEGP – Employment Generation",
-    scheme_type: "Grants",
-    max_benefit: "35% subsidy on project cost",
-    eligibility_match_score: 78,
-    why_eligible: "Up to 35% government subsidy on new enterprise setup under ₹25 Lakh manufacturing projects.",
-    portal_url: "https://www.kviconline.gov.in/pmegpeportal/pmegphome/index.jsp",
-    ministry: "Ministry of MSME / KVIC",
-    target: "all",
-  },
-  {
-    scheme_name: "Stand Up India",
-    scheme_type: "Loans",
-    max_benefit: "₹10 Lakh – ₹1 Cr",
-    eligibility_match_score: 82,
-    why_eligible: "Bank loans between ₹10L–₹1Cr for SC/ST and women entrepreneurs setting up greenfield enterprises.",
-    portal_url: "https://www.standupmitra.in",
-    ministry: "Ministry of Finance",
-    target: "women",
-  },
-  {
-    scheme_name: "MSME Sampark – Skill & Placement",
-    scheme_type: "Central",
-    max_benefit: "Free skilled workforce access",
-    eligibility_match_score: 68,
-    why_eligible: "Access to trained manpower from government skill programs at zero cost.",
-    portal_url: "https://msmesampark.in",
-    ministry: "Ministry of MSME",
-    target: "all",
-  },
-  {
-    scheme_name: "ZED Certification",
-    scheme_type: "Grants",
-    max_benefit: "₹5 Lakh reimbursement",
-    eligibility_match_score: 74,
-    why_eligible: "Zero Defect Zero Effect certification with up to ₹5L subsidy for quality-compliant MSMEs.",
-    portal_url: "https://zed.msme.gov.in",
-    ministry: "Ministry of MSME",
-    target: "all",
-  },
-  {
-    scheme_name: "CLCS-TUS – Technology Upgradation",
-    scheme_type: "Central",
-    max_benefit: "15% capital subsidy",
-    eligibility_match_score: 77,
-    why_eligible: "15% capital subsidy on purchase of plant & machinery for technology upgradation.",
-    portal_url: "https://msme.gov.in/schemes/credit-linked-capital-subsidy-and-technology-upgradation-scheme",
-    ministry: "Ministry of MSME",
-    target: "manufacturing",
-  },
-  {
-    scheme_name: "Pradhan Mantri Mudra Yojana",
-    scheme_type: "Loans",
-    max_benefit: "₹10 Lakh (Tarun category)",
-    eligibility_match_score: 88,
-    why_eligible: "Collateral-free business loans in Shishu/Kishore/Tarun tiers for non-corporate small businesses.",
-    portal_url: "https://www.mudra.org.in",
-    ministry: "Ministry of Finance",
-    target: "all",
-  },
-  {
-    scheme_name: "Weavers MUDRA Scheme",
-    scheme_type: "Loans",
-    max_benefit: "₹10 Lakh at 6% interest",
-    eligibility_match_score: 62,
-    why_eligible: "Subsidised credit for handloom weavers and textile micro-enterprises.",
-    portal_url: "https://handlooms.nic.in",
-    ministry: "Ministry of Textiles",
-    target: "textile",
-  },
-  {
-    scheme_name: "Startup India Seed Fund",
-    scheme_type: "Grants",
-    max_benefit: "₹20 Lakh grant",
-    eligibility_match_score: 65,
-    why_eligible: "Early-stage funding for DPIIT-recognised startups for PoC, prototype, and market entry.",
-    portal_url: "https://seedfund.startupindia.gov.in",
-    ministry: "DPIIT",
-    target: "startup",
-  },
-];
+// ─── Map frontend profile fields to the SCOUT backend profile shape ──────────
+function toScoutProfile(profile) {
+  // Parse turnover string (e.g. "₹50 Lakh", "5000000", "2 Cr") into lakhs (number).
+  let annualTurnover = null;
+  const raw = String(profile.turnover || "").replace(/[₹,\s]/g, "");
+  const numMatch = raw.match(/(\d+(?:\.\d+)?)/);
+  if (numMatch) {
+    let val = parseFloat(numMatch[1]);
+    if (/cr/i.test(raw)) val *= 100; // 1 Cr = 100 lakh
+    else if (/lakh|lac/i.test(raw)) val *= 1; // already lakhs
+    else val = val / 100000; // assume raw rupees
+    annualTurnover = val;
+  }
 
-// ─── ARIA Scheme System Prompt ────────────────────────────────────────────
-const SCHEME_SYSTEM = `You are SCOUT, a government scheme matching AI for Indian MSMEs.
-Given a business profile, return ONLY a valid JSON array of up to 8 relevant schemes FROM this master list:
-${JSON.stringify(REAL_GOVT_SCHEMES.map(s => s.scheme_name))}
+  // Map frontend sector/businessType to SCOUT expected business_type values.
+  const sector = String(profile.sector || profile.businessType || "").toLowerCase();
+  let businessType = sector;
+  if (/retail|shop|trading|wholesale|kirana/i.test(sector)) businessType = "trader";
+  else if (/manufactur|factory|production/i.test(sector)) businessType = "manufacturer";
+  else if (/service|consult|it|tech|salon|repair/i.test(sector)) businessType = "service";
 
-For each matched scheme return:
-{ "scheme_name": "<exact name from list>", "eligibility_match_score": <60-99>, "why_eligible": "<one sentence specific to their profile, mention their sector/state/turnover>" }
+  return {
+    businessName: profile.businessName || "",
+    businessType,
+    state: profile.state || "",
+    annualTurnover,
+    isWomenLed: !!profile.isWomen,
+    udyamNumber: profile.udyam || "",
+    gstin: profile.gstin || "",
+    pan: profile.pan || "",
+  };
+}
 
-Return ONLY the raw JSON array. No markdown, no backticks.`;
+// ─── Map backend SCOUT response to the scheme-card shape the UI expects ──────
+function mapScoutMatch(m) {
+  return {
+    id: m.schemeId,
+    scheme_name: m.name,
+    scheme_type: m.schemeType || "Central",
+    max_benefit: m.maxBenefit || "",
+    eligibility_match_score: Math.round((m.matchScore || 0) * 100),
+    why_eligible: m.explanationHindi || m.description || "",
+    portal_url: m.officialUrl || m.sourceUrl || "",
+    ministry: m.ministry || "Government of India",
+    target: "all",
+    matchLabel: m.matchLabel,
+    missingInfo: m.missingInfo || [],
+    isPossible: m.isPossible,
+  };
+}
 
 export default function SchemesPage() {
   const profile = getProfile();
@@ -152,67 +70,44 @@ export default function SchemesPage() {
   const [modalScheme, setModalScheme] = useState(null);
   const [aiLoaded, setAiLoaded] = useState(false);
   const [applyScheme, setApplyScheme] = useState(null);
+  const [appliedCount, setAppliedCount] = useState(() => {
+    try {
+      return parseInt(localStorage.getItem(APPLIED_KEY) || "0", 10) || 0;
+    } catch {
+      return 0;
+    }
+  });
 
-  // Merge AI scores + why_eligible into REAL_GOVT_SCHEMES
-  function mergeWithRealData(aiResults) {
-    const aiMap = {};
-    aiResults.forEach((r) => { aiMap[r.scheme_name] = r; });
-
-    return REAL_GOVT_SCHEMES
-      .map((scheme) => {
-        const ai = aiMap[scheme.scheme_name];
-        if (!ai) return null;
-        return {
-          ...scheme,
-          eligibility_match_score: ai.eligibility_match_score || scheme.eligibility_match_score,
-          why_eligible: ai.why_eligible || scheme.why_eligible,
-        };
-      })
-      .filter(Boolean)
-      .sort((a, b) => b.eligibility_match_score - a.eligibility_match_score);
-  }
-
-  // Fallback: pick relevant schemes from static list based on profile
-  function buildFallbackSchemes() {
-    return REAL_GOVT_SCHEMES.filter((s) => {
-      if (s.target === "women" && !profile.isWomen) return false;
-      if (s.target === "manufacturing" && !profile.sector?.toLowerCase().includes("manufactur")) return false;
-      if (s.target === "textile" && !profile.sector?.toLowerCase().includes("textil")) return false;
-      if (s.target === "startup" && !(profile.registrations || []).includes("DPIIT")) return false;
-      return true;
-    }).slice(0, 8);
-  }
-
-  async function fetchAISchemes() {
+  async function fetchSchemes() {
     setLoading(true);
     try {
-      const prompt = `Business profile: ${JSON.stringify(profile)}.
-Match the best schemes for this business. Consider: sector=${profile.sector}, state=${profile.state}, women=${profile.isWomen}, turnover=${profile.turnover}, registrations=${JSON.stringify(profile.registrations)}.
-Return JSON array of matched scheme names with scores and personalised why_eligible.`;
-
-      const reply = await groqChat(
-        [{ role: "user", content: prompt }],
-        SCHEME_SYSTEM,
-        { maxTokens: 1200, temperature: 0.3 }
-      );
-
-      const clean = reply.replace(/```json|```/g, "").trim();
-      const parsed = JSON.parse(clean);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        setSchemes(mergeWithRealData(parsed));
-        setAiLoaded(true);
-      } else {
-        setSchemes(buildFallbackSchemes());
-      }
+      const data = await apiFetch("/api/schemes/evaluate-custom", {
+        method: "POST",
+        body: JSON.stringify({ profile: toScoutProfile(profile), limit: 10 }),
+      });
+      const matches = (data.topMatches || []).map(mapScoutMatch);
+      setSchemes(matches);
+      setAiLoaded(true);
     } catch {
-      setSchemes(buildFallbackSchemes());
+      setSchemes([]);
+      setAiLoaded(false);
     } finally {
       setLoading(false);
     }
   }
 
+  function markApplied() {
+    const next = appliedCount + 1;
+    setAppliedCount(next);
+    try {
+      localStorage.setItem(APPLIED_KEY, String(next));
+    } catch {
+      /* ignore */
+    }
+  }
+
   useEffect(() => {
-    fetchAISchemes();
+    fetchSchemes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -238,14 +133,14 @@ Return JSON array of matched scheme names with scores and personalised why_eligi
               <p className="text-violet-200 text-xs font-bold tracking-widest uppercase">SCOUT AI · Official Govt Portals</p>
               <p className="text-white text-sm mt-0.5">
                 {aiLoaded
-                  ? `${schemes.length} schemes matched to ${profile.businessName} · ${profile.state} — all linking to official govt portals`
+                  ? `${schemes.length} schemes matched to ${profile.businessName} · ${profile.state || "India"} — all linking to official govt portals`
                   : loading
                     ? "Matching schemes to your profile…"
                     : `${schemes.length} government schemes for ${profile.businessName || "your business"}`}
               </p>
             </div>
             <button
-              onClick={fetchAISchemes}
+              onClick={fetchSchemes}
               disabled={loading}
               className="text-violet-300 hover:text-white disabled:opacity-40"
               title="Re-match schemes"
@@ -283,7 +178,7 @@ Return JSON array of matched scheme names with scores and personalised why_eligi
               <h2 className="font-bold text-cs-900 text-xl mb-4">Status Board</h2>
               {[
                 ["ENROLLED", `${(profile.registrations || []).length}`, CheckCircle2],
-                ["APPLIED", "05", Shield],
+                ["APPLIED", `${String(appliedCount).padStart(2, "0")}`, Shield],
                 ["ELIGIBLE", `${String(schemes.length).padStart(2, "0")}`, Shield],
               ].map(([label, value, Icon]) => (
                 <div key={label} className="border border-cs-100 rounded-xl p-4 mb-3 flex items-center justify-between">
@@ -297,11 +192,11 @@ Return JSON array of matched scheme names with scores and personalised why_eligi
 
               {profile.isWomen && (
                 <div className="bg-pink-50 border border-pink-100 rounded-xl p-4 mt-2 mb-3">
-                  <p className="text-pink-700 text-xs font-bold tracking-widest">🌸 WOMEN BENEFITS</p>
+                  <p className="text-pink-700 text-xs font-bold tracking-widest">WOMEN BENEFITS</p>
                   <p className="text-pink-900 text-sm font-semibold mt-1">
                     {schemes.filter(s => s.scheme_type === "Women").length} women-specific schemes
                   </p>
-                  <p className="text-pink-600 text-xs mt-0.5">Mahila Udyam Nidhi & Stand Up India</p>
+                  <p className="text-pink-600 text-xs mt-0.5">Mahila Udyam Nidhi &amp; Stand Up India</p>
                 </div>
               )}
 
@@ -336,12 +231,20 @@ Return JSON array of matched scheme names with scores and personalised why_eligi
                 </div>
               ))}
             </div>
+          ) : filtered.length === 0 ? (
+            <div className="bg-white border border-cs-100 rounded-2xl p-10 text-center">
+              <p className="text-cs-500 text-sm">
+                {aiLoaded
+                  ? "No schemes matched your current profile. Update your profile or try again."
+                  : "Could not reach the scheme matcher. Make sure the backend is running."}
+              </p>
+            </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
               <AnimatePresence>
                 {filtered.map((scheme, idx) => (
                   <motion.div
-                    key={scheme.scheme_name}
+                    key={scheme.id || scheme.scheme_name}
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.05 }}
@@ -387,7 +290,7 @@ Return JSON array of matched scheme names with scores and personalised why_eligi
                       scheme.scheme_name?.toLowerCase().includes("mahila") ||
                       scheme.scheme_type === "Women") && (
                         <span className="inline-flex items-center gap-1 text-pink-600 text-xs font-semibold bg-pink-50 border border-pink-100 rounded-full px-2 py-0.5 mb-3 w-fit">
-                          🌸 Women Specific
+                          Women Specific
                         </span>
                       )}
 
@@ -397,12 +300,13 @@ Return JSON array of matched scheme names with scores and personalised why_eligi
                         href={scheme.portal_url}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={markApplied}
                         className="flex-1 flex items-center justify-center gap-1.5 bg-cs-900 text-cs-50 rounded-lg py-2 text-xs font-semibold hover:bg-cs-700 transition-colors"
                       >
                         Apply Now <ExternalLink size={11} />
                       </a>
                       <button
-                        onClick={() => setApplyScheme(scheme)}
+                        onClick={() => { setApplyScheme(scheme); markApplied(); }}
                         className="flex-shrink-0 border border-cs-200 text-cs-700 rounded-lg px-3 py-2 text-xs font-semibold hover:bg-cs-50 transition-colors"
                       >
                         Pre-fill
